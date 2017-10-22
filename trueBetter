@@ -1,0 +1,134 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Oct 22 14:04:52 2017
+
+@author: Christopher
+"""
+
+import random 
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+from sklearn.cluster import KMeans
+from sklearn import metrics
+from scipy.spatial.distance import cdist
+
+def percentWinOnBet(percentBet):
+    decimal = float(1)+percentBet 
+    percentDecimal = float(1)/decimal
+    percentDecimal = 1- percentDecimal
+    return percentDecimal
+
+def computer(centers, percent):
+    ratio = -1
+    percentDiff = 2
+    for i in range(len(centers)-3,len(centers)):
+        center = centers[i]
+        diff = np.abs(center[0]-percent)
+        if(diff<percentDiff):
+            percentDiff = diff
+            centerX = center[0]
+            ratio = center[1]
+    return ratio, centerX
+x1 = [0]*100
+x2=[0]*100
+point = [0]*2
+test = 0
+while (test==0):
+    numTrue = math.floor(random.uniform(40,60))
+    numBluff = math.floor(random.uniform(20,40))
+    numReserved = math.floor(100 - numBluff - numTrue)
+    if(numReserved >0):
+        test = 1
+
+for i in range(numBluff):
+    x2[i] = random.uniform(1.3,1.5)
+    x1[i] = random.uniform(.68,1)
+for j in range (numTrue):
+    x1[numBluff+j] = random.uniform(.33,.79)
+    x2[numBluff+j] = random.uniform (.78,1.22)
+for k in range(numReserved):
+    x1[numBluff+numTrue+k] = random.uniform(.1,.4)
+    x2[numBluff + numTrue +k] = random.uniform(.26,.69)
+
+X = np.array(list(zip(x1, x2))).reshape(len(x1), 2)
+colors = ['b', 'r', 'g']
+plt.plot()
+plt.xlim([0, 1])
+plt.ylim([0, 2])
+plt.title('Dataset')
+plt.xlabel('Percent of Pot Bet')
+plt.ylabel('Ratio of Pot Bet to True Value')
+plt.scatter(x1,x2)
+plt.show()
+
+distortions = []
+K = range(1,10)
+for k in K:
+    kmeanModel = KMeans(n_clusters=k).fit(X)
+    kmeanModel.fit(X)
+    distortions.append(sum(np.min(cdist(X,kmeanModel.cluster_centers_,'euclidean'),axis=1))/X.shape[0])
+slopes = [0]*(len(distortions)-1) 
+slopeTotal = 0
+for i in range (1,len(distortions)):
+    changeY = distortions[i] - distortions[i-1]
+    changeX = 1
+    slope = changeY/changeX
+    slope = np.abs(slope)
+    slopes[i-1] = slope
+    slopeTotal = slope + slopeTotal
+avgSlope = slopeTotal/(len(slopes))
+for n in range(len(slopes)):
+    if(slopes[n]<avgSlope):
+        optimalK = n + 1
+        break
+
+# Plot the elbow
+
+plt.plot(K, distortions, 'bx-')
+plt.axvline(x=optimalK,color='r',linestyle='dashed')
+plt.xlabel('k value')
+plt.ylabel('Distortion Value')
+plt.title('The Elbow Method showing the optimal k')
+plt.show()
+
+centers = kmeanModel.cluster_centers_
+plt.plot()
+clusterGroups = KMeans(n_clusters=optimalK).fit_predict(X)
+centers = KMeans(n_clusters=optimalK).fit(X).cluster_centers_
+totalBets = 0
+total = 0
+lowBet = 0
+highBet = 0
+maxX = 0
+minX = 1000
+for i in range (len(X)):
+    colorSpot = clusterGroups[i]
+    colorPoint = colors[colorSpot]
+    point = X[i]
+    x = point[0]
+    y = point[1]
+    plt.scatter(x,y, c=colorPoint,alpha = .3)
+for j in range (optimalK):
+    center = centers[j]
+    color = colors[j]
+    c1 = center[0]
+    c2 = center[1]
+    plt.scatter(c1,c2,color='k', marker = "o", s = 100) 
+    
+plt.title('True Better')
+plt.xlabel('Percent of Pot Bet')
+plt.ylabel('Ratio of Percent of Pot Bet to the True Value')
+plt.axvline(.4, linestyle = 'dashed')
+plt.axvline(.7, linestyle = 'dashed')
+plt.axhline(.75, linestyle = 'dashed')
+plt.axhline(1.25, linestyle = 'dashed')
+
+
+percentBet = random.uniform(0,1)
+ratio, center = computer(centers,percentBet)
+betOdds = percentWinOnBet(percentBet)
+worth = betOdds/ratio
+print("Opponent bet: " + str(percentBet) )
+print( "This bet belongs in cluster with centroid: (" + str(center) + "," + str(ratio) + ")")
+print( "Estimated probability of opponent winning: " + str(worth))
